@@ -390,7 +390,8 @@ class Markdown extends ControllerAbstract {
 			} else {
 				self::$parser_instance = new Module\MarkdownParser();
 			}
-			self::$parser_instance->setSafeMode(true);
+			// 允许 HTML 标签的渲染（禁用 Safe Mode）
+			self::$parser_instance->setSafeMode(false);
 		}
 
 		return self::$parser_instance;

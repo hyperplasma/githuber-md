@@ -9,8 +9,8 @@ var is_support_html_figure = false;
 var spellcheck_dictionary_dir = '';
 var spellcheck_lang = 'en_US';
 
-(function($) {
-    $(function() {
+(function ($) {
+    $(function () {
         var config = window.editormd_config;
 
         spellcheck_lang = config.editor_spell_check_lang;
@@ -27,9 +27,9 @@ var spellcheck_lang = 'en_US';
             syncScrolling: (config.editor_sync_scrolling === 'yes'),
             watch: (config.editor_live_preview === 'yes'),
             htmlDecode: (config.editor_html_decode === 'yes'),
-            theme: config.editor_toolbar_theme, 
+            theme: config.editor_toolbar_theme,
             previewTheme: 'default',
-            editorTheme: config.editor_editor_theme, 
+            editorTheme: config.editor_editor_theme,
             tocContainer: (config.support_toc === 'yes') ? '' : false,
             emoji: (config.support_emojify === 'yes'),
             tex: (config.support_katex === 'yes'),
@@ -43,8 +43,8 @@ var spellcheck_lang = 'en_US';
             spellCheck: (config.editor_spell_check === 'yes'),
             matchWordHighlight: (config.editor_match_highlighter === 'yes') ? 'onselected' : false,
             toolbarAutoFixed: true,
-            tocm: false, 
-            tocDropdown: false,    
+            tocm: false,
+            tocDropdown: false,
             atLink: false,
             imagePasteCallback: config.image_paste_callback,
             toolbarIcons: function () {
@@ -54,7 +54,7 @@ var spellcheck_lang = 'en_US';
                     'h1', 'h2', 'h3', 'h4', '|',
                     'list-ul', 'list-ol', 'hr', '|',
                     'link', 'reference-link', 'image', 'code', 'code-block', 'table', 'datetime', 'html-entities', 'more', 'pagebreak', config.support_emoji === 'yes' ? 'emoji' : '' + '|',
-                    'watch', 'preview', 'fullscreen',  config.support_emojify === 'yes' ? "emoji" : "", 'help', 
+                    'watch', 'preview', 'fullscreen', config.support_emojify === 'yes' ? "emoji" : "", 'help', 'githuber-nav-toc'
                 ];
             },
             onfullscreen: function () {
@@ -74,7 +74,8 @@ var spellcheck_lang = 'en_US';
 
             toolbarIconsClass: {
                 toc: 'fa-list-alt',
-                more: 'fa-ellipsis-h'
+                more: 'fa-ellipsis-h',
+                'githuber-nav-toc': 'fa-bookmark'
             },
 
             toolbarHandlers: {
@@ -83,12 +84,16 @@ var spellcheck_lang = 'en_US';
                 },
                 more: function (cm, icon, cursor, selection) {
                     cm.replaceSelection('\r\n<!--more-->\r\n');
+                },
+                'githuber-nav-toc': function (cm, icon, cursor, selection) {
+                    githuber_show_nav_toc_dialog(cm);
                 }
             },
             lang: {
                 toolbar: {
                     toc: 'The Table Of Contents',
-                    more: 'More'
+                    more: 'More',
+                    'githuber-nav-toc': 'Navigate to Heading or Table'
                 }
             },
         };
@@ -105,7 +110,7 @@ var spellcheck_lang = 'en_US';
         if (typeof image_insert_type !== 'undefined') {
             var image_insert_type = 'markdown';
         }
-        $(document).on('change', '.githuber_image_insert', function() {
+        $(document).on('change', '.githuber_image_insert', function () {
             // html or markdown
             image_insert_type = $(this).val();
         });
@@ -125,7 +130,7 @@ var spellcheck_lang = 'en_US';
             var new_content = '';
 
             if (html_str.substring(0, 4) === '<img') {
-    
+
                 var img_src = $(html_str).attr('src');
                 var img_alt = $(html_str).attr('alt');
 
@@ -158,16 +163,140 @@ var spellcheck_lang = 'en_US';
                 var ahref = $(html_str).attr('href');
                 var inicio_txt = html_str.indexOf('>');
                 var fin_txt = html_str.indexOf('<', inicio_txt);
-                var txt = html_str.substring(inicio_txt+1, fin_txt);
+                var txt = html_str.substring(inicio_txt + 1, fin_txt);
                 if (image_insert_type === 'html') {
                     new_content += html_str;
                 } else {
-                    new_content += '[' + txt + '](' + ahref +' "' + txt +'")';
+                    new_content += '[' + txt + '](' + ahref + ' "' + txt + '")';
                 }
                 githuber_md_editor.replaceSelection(new_content);
             } else {
                 console.log(html_str);
             }
+        }
+
+        // 显示导航TOC对话框
+        function githuber_show_nav_toc_dialog(editor) {
+            var content = editor.getValue();
+            var tocItems = [];
+            var lines = content.split('\n');
+
+            // 匹配标题和表格
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+
+                // 匹配标题 (# ## ### 等)
+                var headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+                if (headingMatch) {
+                    var level = headingMatch[1].length;
+                    var text = headingMatch[2].trim();
+                    tocItems.push({
+                        type: 'heading',
+                        level: level,
+                        text: text,
+                        line: i
+                    });
+                }
+
+                // 匹配表格首行 (包含 |)
+                var tableMatch = line.match(/^\s*\|.+\|\s*$/);
+                if (tableMatch && i > 0) {
+                    // 检查是否是真实表格（下一行应该是分隔符）
+                    if (i + 1 < lines.length) {
+                        var nextLine = lines[i + 1];
+                        var separatorMatch = nextLine.match(/^\s*\|[\s\-:|]+\|\s*$/);
+                        if (separatorMatch) {
+                            // 获取表格的第一行内容作为标题
+                            var cells = line.split('|').map(function (cell) {
+                                return cell.trim();
+                            }).filter(function (cell) {
+                                return cell.length > 0;
+                            });
+                            var tableTitle = cells.join(' - ');
+                            tocItems.push({
+                                type: 'table',
+                                text: 'Table: ' + (tableTitle || 'Unnamed'),
+                                line: i
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 创建对话框HTML
+            var dialogHtml = '<div id="githuber-toc-dialog" style="max-height: 400px; overflow-y: auto;">';
+
+            if (tocItems.length === 0) {
+                dialogHtml += '<p style="color: #999; padding: 20px; text-align: center;">No headings or tables found in document.</p>';
+            } else {
+                dialogHtml += '<ul style="list-style: none; padding: 0; margin: 0;">';
+
+                tocItems.forEach(function (item, index) {
+                    var indent = item.type === 'heading' ? (item.level - 1) * 20 : 0;
+                    var icon = item.type === 'heading' ? '📝' : '📊';
+                    var itemHtml = '<li style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; margin-left: ' + indent + 'px;" data-line="' + item.line + '">';
+                    itemHtml += '<span style="margin-right: 8px;">' + icon + '</span>';
+                    itemHtml += item.text;
+                    itemHtml += '</li>';
+                    dialogHtml += itemHtml;
+                });
+
+                dialogHtml += '</ul>';
+            }
+
+            dialogHtml += '</div>';
+
+            // 创建模态对话框
+            var modal = document.createElement('div');
+            modal.id = 'githuber-toc-modal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
+
+            var dialog = document.createElement('div');
+            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);';
+
+            var header = document.createElement('div');
+            header.style.cssText = 'padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;';
+            header.innerHTML = '<h3 style="margin: 0; font-size: 16px;">Document Navigation</h3><button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>';
+
+            var container = document.createElement('div');
+            container.innerHTML = dialogHtml;
+            container.style.cssText = 'max-height: 500px; overflow-y: auto;';
+
+            dialog.appendChild(header);
+            dialog.appendChild(container);
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+
+            // 绑定关闭按钮事件
+            header.querySelector('button').onclick = function () {
+                modal.remove();
+            };
+
+            // 绑定背景点击关闭事件
+            modal.onclick = function (e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
+
+            // 绑定列表项点击事件
+            container.querySelectorAll('li').forEach(function (item) {
+                item.onclick = function (e) {
+                    e.stopPropagation();
+                    var line = parseInt(this.getAttribute('data-line'));
+                    editor.setCursor(line, 0);
+                    editor.scrollIntoView({ line: line, ch: 0 }, 200);
+                    modal.remove();
+                };
+
+                item.style.transition = 'background-color 0.2s';
+                item.onmouseover = function () {
+                    this.style.backgroundColor = '#f5f5f5';
+                };
+                item.onmouseout = function () {
+                    this.style.backgroundColor = 'transparent';
+                };
+            });
         }
     });
 })(jQuery);

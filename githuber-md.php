@@ -1,11 +1,11 @@
 <?php
 /**
- * Plugin Name: WP Githuber MD
- * Plugin URI:  https://github.com/terrylinooo/githuber-md
- * Description: An all-in-one Markdown plugin for your WordPress sites.
- * Version:     1.17.0
- * Author:      Terry Lin
- * Author URI:  https://terryl.in/
+ * Plugin Name: WP Githuber MD Plus
+ * Plugin URI:  https://github.com/hyperplasma/githuber-md
+ * Description: The enhanced version of the best all-in-one Markdown plugin for your WordPress sites.
+ * Version:     1.17.1
+ * Author:      Akira37 from Hyperplasma
+ * Author URI:  https://www.hyperplasma.top/
  * License:     GPL 3.0
  * License URI: http://www.gnu.org/licenses/gpl-3.0.txt
  * Text Domain: wp-githuber-md

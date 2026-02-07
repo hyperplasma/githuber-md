@@ -55,7 +55,8 @@ var spellcheck_lang = 'en_US';
                     'list-ul', 'list-ol', 'hr', '|',
                     'link', 'reference-link', 'image', 'code', 'code-block', 'table', 'datetime', 'html-entities', 'more', 'pagebreak', config.support_emoji === 'yes' ? 'emoji' : '' + '|',
                     // 'watch', 'preview', 'fullscreen', config.support_emojify === 'yes' ? "emoji" : "", 'help', 'githuber-nav-toc'
-                    'watch', 'fullscreen', 'help', 'githuber-nav-toc'
+                    'watch', 'fullscreen', 'help',
+                    'githuber-nav-toc'
                 ];
             },
             onfullscreen: function () {

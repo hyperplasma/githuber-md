@@ -923,9 +923,9 @@ class Markdown extends ControllerAbstract {
 	 * @param array  $args Arguments, with keys:
 	 *                     id: provide a string to prefix footnotes with a unique identifier
 	 *                     unslash: when true, expects and returns slashed data
-	 *                     decode_code_blocks: when true, assume that text in fenced code blocks is already
-	 *                     HTML encoded and should be decoded before being passed to Markdown, which does
-	 *                     its own encoding.
+	 *                     decode_code_blocks: (deprecated) previously used to control code block restoration,
+	 *                     but now code blocks are always restored before Markdown parsing to prevent
+	 *                     double-encoding issues (issue #209).
 	 * @return string Markdown-processed content
 	 */
 	public function transform( $text, $args = array() ) {
@@ -953,10 +953,11 @@ class Markdown extends ControllerAbstract {
 		// sometimes we get an encoded > at start of line, breaking blockquotes
 		$text = preg_replace( '/^&gt;/m', '>', $text );
 
-		// If we're not using the code shortcode, prevent over-encoding.
-		if ( $args['decode_code_blocks'] ) {
-			$text = $this->restore_code_blocks( $text );
-		}
+		// Always restore code blocks to prevent double-encoding issues (Fix: issue #209, #...)
+		// Previously, code blocks were only restored if decode_code_blocks was true,
+		// but code blocks are preserved (escaped) in content_save_pre hook regardless.
+		// Not restoring them causes the escaped characters to remain permanently.
+		$text = $this->restore_code_blocks( $text );
 
 		// Transform it!
 		$text = $this->get_parser()->transform( $text );

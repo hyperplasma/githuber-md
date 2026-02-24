@@ -1,3 +1,5 @@
+
+
 var global_editormd_config = {};
 var wp_editor_container = '#wp-content-editor-container';
 var wp_editor = 'wp-content-editor-container';
@@ -6,6 +8,17 @@ var is_support_inline_keyboard_style = false;
 var is_support_html_figure = false;
 var spellcheck_dictionary_dir = '';
 var spellcheck_lang = 'en_US';
+
+// 从 sessionStorage 读取 TOC 导航对话框的滚动位置，如果不存在则为 0
+function getTocScrollPosition() {
+    var saved = sessionStorage.getItem('githuber_toc_scroll_position');
+    return saved ? parseInt(saved) : 0;
+}
+
+// 保存 TOC 导航对话框的滚动位置到 sessionStorage
+function setTocScrollPosition(position) {
+    sessionStorage.setItem('githuber_toc_scroll_position', position);
+}
 
 (function ($) {
     $(function () {
@@ -52,9 +65,10 @@ var spellcheck_lang = 'en_US';
                     'h1', 'h2', 'h3', 'h4', '|',
                     'list-ul', 'list-ol', 'hr', '|',
                     'link', 'reference-link', 'image', 'code', 'code-block', 'table', 'datetime', 'html-entities', 'more', 'pagebreak', config.support_emoji === 'yes' ? 'emoji' : '' + '|',
+                    // 'watch', 'preview', 'fullscreen', config.support_emojify === 'yes' ? "emoji" : "", 'help', 'githuber-nav-toc'
                     'watch', 'fullscreen', 'help',
                     'githuber-nav-toc'
-                ];  // 'watch', 'preview', 'fullscreen', config.support_emojify === 'yes' ? "emoji" : "", 'help', 'githuber-nav-toc'
+                ];
             },
             onfullscreen: function () {
                 $(wp_editor_container).css({
@@ -223,18 +237,18 @@ var spellcheck_lang = 'en_US';
             }
 
             // 创建对话框HTML
-            var dialogHtml = '<div id="githuber-toc-dialog">';
+            var dialogHtml = '<div id="githuber-toc-dialog" style="max-height: 400px; overflow-y: auto;">';
 
             if (tocItems.length === 0) {
-                dialogHtml += '<p style="color: #999; padding: 15px; text-align: center;">No headings or tables found in document.</p>';
+                dialogHtml += '<p style="color: #999; padding: 20px; text-align: center;">No headings or tables found in document.</p>';
             } else {
-                dialogHtml += '<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;">';
+                dialogHtml += '<ul style="list-style: none; padding: 0; margin: 0;">';
 
                 tocItems.forEach(function (item, index) {
-                    var indent = item.type === 'heading' ? (item.level - 1) * 16 : (3 - 1) * 16;
+                    var indent = item.type === 'heading' ? (item.level - 1) * 20 : 0;
                     var icon = item.type === 'heading' ? '📝' : '📊';
-                    var itemHtml = '<li style="padding: 6px 10px; border-bottom: 1px solid #eee; cursor: pointer; margin-left: ' + indent + 'px; line-height: 1.4;" data-line="' + item.line + '">';
-                    itemHtml += '<span style="margin-right: 6px;">' + icon + '</span>';
+                    var itemHtml = '<li style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; margin-left: ' + indent + 'px;" data-line="' + item.line + '">';
+                    itemHtml += '<span style="margin-right: 8px;">' + icon + '</span>';
                     itemHtml += item.text;
                     itemHtml += '</li>';
                     dialogHtml += itemHtml;
@@ -251,30 +265,42 @@ var spellcheck_lang = 'en_US';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
 
             var dialog = document.createElement('div');
-            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; height: 85vh; max-height: 85vh; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: flex; flex-direction: column;';
+            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);';
 
             var header = document.createElement('div');
-            header.style.cssText = 'padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;';
+            header.style.cssText = 'padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;';
             header.innerHTML = '<h3 style="margin: 0; font-size: 16px;">Document Navigation</h3><button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>';
 
             var container = document.createElement('div');
             container.innerHTML = dialogHtml;
-            container.style.cssText = 'overflow-y: auto; flex: 1; padding: 0;';
+            container.style.cssText = 'max-height: 500px; overflow-y: auto;';
 
             dialog.appendChild(header);
             dialog.appendChild(container);
             modal.appendChild(dialog);
             document.body.appendChild(modal);
 
+            // 延迟恢复滚动位置（确保 DOM 已经完全渲染）
+            setTimeout(function () {
+                var savedScrollPosition = getTocScrollPosition();
+                container.scrollTop = savedScrollPosition;
+            }, 0);
+
+            // 关闭对话框函数（保存滚动位置）
+            function closeModal() {
+                setTocScrollPosition(container.scrollTop);
+                modal.remove();
+            }
+
             // 绑定关闭按钮事件
             header.querySelector('button').onclick = function () {
-                modal.remove();
+                closeModal();
             };
 
             // 绑定背景点击关闭事件
             modal.onclick = function (e) {
                 if (e.target === modal) {
-                    modal.remove();
+                    closeModal();
                 }
             };
 
@@ -285,7 +311,7 @@ var spellcheck_lang = 'en_US';
                     var line = parseInt(this.getAttribute('data-line'));
                     editor.setCursor(line, 0);
                     editor.scrollIntoView({ line: line, ch: 0 }, 200);
-                    modal.remove();
+                    closeModal();
                 };
 
                 item.style.transition = 'background-color 0.2s';
@@ -296,55 +322,8 @@ var spellcheck_lang = 'en_US';
                     this.style.backgroundColor = 'transparent';
                 };
             });
-        };
+        }
     });
 })(jQuery);
-
-// === TOC 快捷键 Alt+S/Option+S 呼出/关闭 ===
-(function () {
-    let tocDialogOpen = false;
-    let lastEditor = null;
-
-    document.addEventListener('keydown', function (e) {
-        const isMac = /Mac/.test(navigator.platform);
-        const isAltS = (!isMac && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 's' || e.key === 'S'));
-        const isOptionS = (isMac && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 's' || e.key === 'S'));
-        const tag = (e.target || e.srcElement).tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
-        if (isAltS || isOptionS) {
-            e.preventDefault();
-            const modal = document.getElementById('githuber-toc-modal');
-            if (modal) {
-                modal.remove();
-                tocDialogOpen = false;
-            } else if (typeof githuber_md_editor !== 'undefined') {
-                githuber_show_nav_toc_dialog(githuber_md_editor);
-                tocDialogOpen = true;
-                lastEditor = githuber_md_editor;
-            }
-        }
-    });
-
-    // 保证用按钮或ESC关闭时同步状态
-    const oldShowToc = window.githuber_show_nav_toc_dialog;
-    window.githuber_show_nav_toc_dialog = function (editor) {
-        if (typeof oldShowToc === 'function') oldShowToc(editor);
-        tocDialogOpen = true;
-        lastEditor = editor;
-        // 支持ESC关闭
-        function escListener(ev) {
-            if (ev.key === 'Escape') {
-                const modal = document.getElementById('githuber-toc-modal');
-                if (modal) {
-                    modal.remove();
-                    tocDialogOpen = false;
-                    document.removeEventListener('keydown', escListener, true);
-                }
-            }
-        }
-        document.addEventListener('keydown', escListener, true);
-    };
-})();
-// === TOC 快捷键 END ===
 
 

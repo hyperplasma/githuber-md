@@ -280,16 +280,18 @@ function setTocScrollPosition(position) {
 
             dialogHtml += '</div>';
 
-            // 创建模态对话框
+            // 创建侧边栏容器（不是模态框）
             var modal = document.createElement('div');
             modal.id = 'githuber-toc-modal';
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
+            // 背景透明，仅用于捕获点击事件关闭侧边栏
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 99999; display: block;';
 
             var dialog = document.createElement('div');
-            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; height: 85vh; max-height: 85vh; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: flex; flex-direction: column;';
+            // 贴右边，不要圆角，不要居中
+            dialog.style.cssText = 'position: fixed; top: 0; right: 0; height: 100vh; width: 390px; max-width: 80vw; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 100000;';
 
             var header = document.createElement('div');
-            header.style.cssText = 'padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background-color: #fafafa;';
+            header.style.cssText = 'padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background-color: #fafafa; border-left: 1px solid #eee;';
             header.innerHTML = '<h3 style="margin: 0; font-size: 15px; font-weight: 600;">Document Navigation</h3><button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">&times;</button>';
 
             var container = document.createElement('div');
@@ -301,15 +303,33 @@ function setTocScrollPosition(position) {
             modal.appendChild(dialog);
             document.body.appendChild(modal);
 
+            // 阻止 dialog 内部点击事件冒泡到 modal，防止误触关闭
+            dialog.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+
+            // 在滚动事件中实时记录位置（使用防抖避免频繁更新）
+            var scrollTimeout;
+            container.addEventListener('scroll', function () {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(function () {
+                    setTocScrollPosition(container.scrollTop);
+                }, 100);
+            });
+
             // 延迟恢复滚动位置（确保 DOM 已经完全渲染）
+            // 增加延迟时间到 100ms 以确保 DOM 完全准备好
             setTimeout(function () {
                 var savedScrollPosition = getTocScrollPosition();
-                container.scrollTop = savedScrollPosition;
-            }, 0);
+                if (savedScrollPosition > 0) {
+                    container.scrollTop = savedScrollPosition;
+                }
+            }, 100);
 
             // 关闭对话框函数（保存滚动位置）
             function closeModal() {
-                setTocScrollPosition(container.scrollTop);
+                // 关闭时清除滚动位置记录（页面关闭就清空）
+                sessionStorage.removeItem('githuber_toc_scroll_position');
                 modal.remove();
                 tocDialogOpen = false;
             }
@@ -338,24 +358,47 @@ function setTocScrollPosition(position) {
                 }
             };
 
-            // 绑定列表项点击事件
-            container.querySelectorAll('li').forEach(function (item) {
-                item.onclick = function (e) {
+            // 使用事件委托处理列表项点击事件（侧边栏不关闭，继续编辑）
+            container.addEventListener('click', function (e) {
+                var target = e.target;
+                var item = null;
+
+                // 如果点击的是 li 元素
+                if (target.tagName === 'LI') {
+                    item = target;
+                }
+                // 如果点击的是 li 内部的元素（如 span）
+                else if (target.parentElement && target.parentElement.tagName === 'LI') {
+                    item = target.parentElement;
+                }
+
+                // 如果找到了 li 元素且有 data-line 属性
+                if (item && item.getAttribute('data-line')) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    var line = parseInt(this.getAttribute('data-line'));
+                    var line = parseInt(item.getAttribute('data-line'));
                     editor.setCursor(line, 0);
                     editor.scrollIntoView({ line: line, ch: 0 }, 200);
-                    closeModal();
-                };
-
-                item.style.transition = 'background-color 0.2s';
-                item.onmouseover = function () {
-                    this.style.backgroundColor = '#f9f9f9';
-                };
-                item.onmouseout = function () {
-                    this.style.backgroundColor = 'transparent';
-                };
+                    // ✅ 移除 closeModal() - 侧边栏不关闭，用户可继续选择其他项
+                    return false;
+                }
             });
+
+            // 为列表项添加悬停样式
+            container.addEventListener('mouseenter', function (e) {
+                if (e.target.tagName === 'LI' || e.target.closest('li')) {
+                    var item = e.target.tagName === 'LI' ? e.target : e.target.closest('li');
+                    item.style.transition = 'background-color 0.2s';
+                    item.style.backgroundColor = '#f9f9f9';
+                }
+            }, true);
+
+            container.addEventListener('mouseleave', function (e) {
+                if (e.target.tagName === 'LI' || e.target.closest('li')) {
+                    var item = e.target.tagName === 'LI' ? e.target : e.target.closest('li');
+                    item.style.backgroundColor = 'transparent';
+                }
+            }, true);
 
             tocDialogOpen = true;
         }

@@ -111,6 +111,27 @@ function setTocScrollPosition(position) {
             },
         };
 
+        // TOC 快捷键监听
+        var tocDialogOpen = false;
+        document.addEventListener('keydown', function (e) {
+            // 检查是否为 Mac 系统
+            var isMac = /Mac/.test(navigator.platform);
+            // 判断是否为 Alt + S 或 Option + S (Mac 上 Option+S 会输出 ß)
+            var isAltS = (!isMac && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'ß'));
+            var isOptionS = (isMac && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'ß'));
+
+            if (isAltS || isOptionS) {
+                e.preventDefault();
+                var modal = document.getElementById('githuber-toc-modal');
+                if (modal) {
+                    modal.remove();
+                    tocDialogOpen = false;
+                } else if (typeof githuber_md_editor !== 'undefined' && githuber_md_editor) {
+                    githuber_show_nav_toc_dialog(githuber_md_editor);
+                    tocDialogOpen = true;
+                }
+            }
+        });
 
         if ($(wp_editor_container).length === 1) {
             githuber_md_editor = editormd(wp_editor, global_editormd_config);
@@ -237,18 +258,18 @@ function setTocScrollPosition(position) {
             }
 
             // 创建对话框HTML
-            var dialogHtml = '<div id="githuber-toc-dialog" style="max-height: 400px; overflow-y: auto;">';
+            var dialogHtml = '<div id="githuber-toc-dialog">';
 
             if (tocItems.length === 0) {
-                dialogHtml += '<p style="color: #999; padding: 20px; text-align: center;">No headings or tables found in document.</p>';
+                dialogHtml += '<p style="color: #999; padding: 15px; text-align: center;">No headings or tables found in document.</p>';
             } else {
                 dialogHtml += '<ul style="list-style: none; padding: 0; margin: 0;">';
 
                 tocItems.forEach(function (item, index) {
-                    var indent = item.type === 'heading' ? (item.level - 1) * 20 : 0;
+                    var indent = item.type === 'heading' ? (item.level - 1) * 16 : (3 - 1) * 16;
                     var icon = item.type === 'heading' ? '📝' : '📊';
-                    var itemHtml = '<li style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; margin-left: ' + indent + 'px;" data-line="' + item.line + '">';
-                    itemHtml += '<span style="margin-right: 8px;">' + icon + '</span>';
+                    var itemHtml = '<li style="padding: 5px 10px; border-bottom: 1px solid #eee; cursor: pointer; margin-left: ' + indent + 'px; line-height: 1.3; font-size: 13px;" data-line="' + item.line + '">';
+                    itemHtml += '<span style="margin-right: 6px;">' + icon + '</span>';
                     itemHtml += item.text;
                     itemHtml += '</li>';
                     dialogHtml += itemHtml;
@@ -265,15 +286,15 @@ function setTocScrollPosition(position) {
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; display: flex; align-items: center; justify-content: center;';
 
             var dialog = document.createElement('div');
-            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);';
+            dialog.style.cssText = 'background: white; border-radius: 4px; padding: 0; width: 90%; max-width: 500px; height: 85vh; max-height: 85vh; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: flex; flex-direction: column;';
 
             var header = document.createElement('div');
-            header.style.cssText = 'padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;';
-            header.innerHTML = '<h3 style="margin: 0; font-size: 16px;">Document Navigation</h3><button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>';
+            header.style.cssText = 'padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background-color: #fafafa;';
+            header.innerHTML = '<h3 style="margin: 0; font-size: 15px; font-weight: 600;">Document Navigation</h3><button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">&times;</button>';
 
             var container = document.createElement('div');
             container.innerHTML = dialogHtml;
-            container.style.cssText = 'max-height: 500px; overflow-y: auto;';
+            container.style.cssText = 'overflow-y: auto; flex: 1; padding: 0;';
 
             dialog.appendChild(header);
             dialog.appendChild(container);
@@ -290,7 +311,20 @@ function setTocScrollPosition(position) {
             function closeModal() {
                 setTocScrollPosition(container.scrollTop);
                 modal.remove();
+                tocDialogOpen = false;
             }
+
+            // 支持 ESC 关闭
+            var escListener = function (ev) {
+                if (ev.key === 'Escape') {
+                    var currentModal = document.getElementById('githuber-toc-modal');
+                    if (currentModal) {
+                        closeModal();
+                        document.removeEventListener('keydown', escListener, true);
+                    }
+                }
+            };
+            document.addEventListener('keydown', escListener, true);
 
             // 绑定关闭按钮事件
             header.querySelector('button').onclick = function () {
@@ -316,12 +350,14 @@ function setTocScrollPosition(position) {
 
                 item.style.transition = 'background-color 0.2s';
                 item.onmouseover = function () {
-                    this.style.backgroundColor = '#f5f5f5';
+                    this.style.backgroundColor = '#f9f9f9';
                 };
                 item.onmouseout = function () {
                     this.style.backgroundColor = 'transparent';
                 };
             });
+
+            tocDialogOpen = true;
         }
     });
 })(jQuery);

@@ -3,7 +3,7 @@
  * Plugin Name: WP Githuber MD Hyplusified
  * Plugin URI:  https://github.com/hyperplasma/githuber-md
  * Description: The enhanced version of the best all-in-one Markdown plugin for your WordPress sites.
- * Version:     1.17.1
+ * Version:     1.17.2
  * Author:      Akira37
  * Author URI:  https://www.hyperplasma.top/
  * License:     GPL 3.0

@@ -219,17 +219,23 @@ function setTocScrollPosition(position) {
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i];
 
-                // 匹配标题 (# ## ### 等)
+                // 匹配标题 (# ## ### 等)，但排除 h6，并且上一行和下一行（若存在）必须为空。
                 var headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
                 if (headingMatch) {
                     var level = headingMatch[1].length;
                     var text = headingMatch[2].trim();
-                    tocItems.push({
-                        type: 'heading',
-                        level: level,
-                        text: text,
-                        line: i
-                    });
+                    if (level < 6) {
+                        var prevLineEmpty = (i === 0) || lines[i - 1].trim() === '';
+                        var nextLineEmpty = (i === lines.length - 1) || lines[i + 1].trim() === '';
+                        if (prevLineEmpty && nextLineEmpty) {
+                            tocItems.push({
+                                type: 'heading',
+                                level: level,
+                                text: text,
+                                line: i
+                            });
+                        }
+                    }
                 }
 
                 // 匹配表格首行 (包含 |)

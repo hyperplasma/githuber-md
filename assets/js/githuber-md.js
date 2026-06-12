@@ -214,10 +214,22 @@ function setTocScrollPosition(position) {
             var content = editor.getValue();
             var tocItems = [];
             var lines = content.split('\n');
+            var inFencedCodeBlock = false;
 
             // 匹配标题和表格
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i];
+                var trimmedLine = line.trim();
+
+                // 处理行内 Markdown 代码块：跳过代码块内的 # 注释。
+                var fencedCodeMatch = trimmedLine.match(/^(```|~~~)/);
+                if (fencedCodeMatch) {
+                    inFencedCodeBlock = !inFencedCodeBlock;
+                    continue;
+                }
+                if (inFencedCodeBlock) {
+                    continue;
+                }
 
                 // 匹配标题 (# ## ### 等)，但排除 h6，并且上一行和下一行（若存在）必须为空。
                 var headingMatch = line.match(/^(#{1,6})\s+(.+)$/);

@@ -24,6 +24,41 @@ function setTocScrollPosition(position) {
     $(function () {
         var config = window.editormd_config;
 
+        function toggleMarkdownComment(cm) {
+            var cursor = cm.getCursor();
+            var line = cm.getLine(cursor.line);
+            var isCommented = line.charAt(0) === '[' && line.slice(-4) === ']: #';
+            var updatedLine = isCommented
+                ? line.slice(1, -4)
+                : '[' + line + ']: #';
+            var selectionAnchor = cm.getCursor('anchor');
+            var selectionHead = cm.getCursor('head');
+            var columnOffset = isCommented ? -1 : 1;
+
+            cm.replaceRange(
+                updatedLine,
+                { line: cursor.line, ch: 0 },
+                { line: cursor.line, ch: line.length }
+            );
+
+            var adjustSelectionPosition = function (position) {
+                if (position.line !== cursor.line) {
+                    return position;
+                }
+                return {
+                    line: position.line,
+                    ch: Math.max(0, Math.min(updatedLine.length, position.ch + columnOffset))
+                };
+            };
+
+            cm.setSelection(
+                adjustSelectionPosition(selectionAnchor),
+                adjustSelectionPosition(selectionHead)
+            );
+
+            return true;
+        }
+
         spellcheck_lang = config.editor_spell_check_lang;
         spellcheck_dictionary_dir = 'https://spellcheck-dictionaries.github.io/' + spellcheck_lang + '/';
 
@@ -102,6 +137,14 @@ function setTocScrollPosition(position) {
                     githuber_show_nav_toc_dialog(cm);
                 }
             },
+            onload: function () {
+                this.addKeyMap({
+                    'Ctrl-/': toggleMarkdownComment,
+                    'Ctrl-Shift-/': toggleMarkdownComment,
+                    'Cmd-/': toggleMarkdownComment,
+                    'Cmd-Shift-/': toggleMarkdownComment
+                });
+            },
             lang: {
                 toolbar: {
                     toc: 'The Table Of Contents',
@@ -131,6 +174,7 @@ function setTocScrollPosition(position) {
                     tocDialogOpen = true;
                 }
             }
+
         });
 
         if ($(wp_editor_container).length === 1) {
@@ -422,5 +466,3 @@ function setTocScrollPosition(position) {
         }
     });
 })(jQuery);
-
-
